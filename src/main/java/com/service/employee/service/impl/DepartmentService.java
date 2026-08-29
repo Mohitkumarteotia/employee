@@ -3,6 +3,7 @@ package com.service.employee.service.impl;
 import com.service.employee.config.DepartmentProperties;
 import com.service.employee.exception.custom.DepartmentServiceException;
 import com.service.employee.exception.custom.RateLimitExceededException;
+import com.service.employee.pojos.constant.ServiceConstants;
 import com.service.employee.pojos.response.DepartmentResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -13,18 +14,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class DepartmentService {
-
-    private static final String SERVICE_NAME = "departmentService";
     private final RestTemplate restTemplate;
     private final DepartmentProperties departmentProperties;
 
-    @CircuitBreaker(name = SERVICE_NAME, fallbackMethod = "departmentFallback")
-    @Retry(name = SERVICE_NAME, fallbackMethod = "departmentFallback")
-    @RateLimiter(name = SERVICE_NAME, fallbackMethod = "rateLimiterFallback")
+    @CircuitBreaker(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
+    @Retry(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
+    @RateLimiter(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "rateLimiterFallback")
     public DepartmentResponse getDepartment(Long departmentId) {
 
         String url = String.format("%s/%s", departmentProperties.getBaseUrl(), departmentId);

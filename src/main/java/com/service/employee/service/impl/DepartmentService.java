@@ -22,10 +22,14 @@ public class DepartmentService {
     private final RestTemplate restTemplate;
     private final DepartmentProperties departmentProperties;
 
-    @CircuitBreaker(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
-    @Retry(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
     @RateLimiter(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "rateLimiterFallback")
     public DepartmentResponse getDepartment(Long departmentId) {
+        return callDepartmentService(departmentId);
+    }
+
+    @CircuitBreaker(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
+    @Retry(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
+    public DepartmentResponse callDepartmentService(Long departmentId) {
 
         String url = String.format("%s/%s", departmentProperties.getBaseUrl(), departmentId);
         log.info("Fetching department details. departmentId={}", departmentId);
@@ -33,6 +37,7 @@ public class DepartmentService {
         log.info("Department details fetched successfully. departmentId={}, departmentName={}", departmentId, response.getDepartmentName());
         return response;
     }
+
 
     public DepartmentResponse departmentFallback(Long departmentId, Exception ex) {
         log.error("Department Service unavailable. departmentId={}, exceptionType={}, message={}", departmentId, ex.getClass().getSimpleName(), ex.getMessage(), ex);

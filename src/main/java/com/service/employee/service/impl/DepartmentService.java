@@ -19,18 +19,14 @@ import org.springframework.web.client.RestTemplate;
 @RequiredArgsConstructor
 @Slf4j
 public class DepartmentService {
+
     private final RestTemplate restTemplate;
     private final DepartmentProperties departmentProperties;
 
+    @Retry(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
+    @CircuitBreaker(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
     @RateLimiter(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "rateLimiterFallback")
     public DepartmentResponse getDepartment(Long departmentId) {
-        return callDepartmentService(departmentId);
-    }
-
-    @CircuitBreaker(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
-    @Retry(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "departmentFallback")
-    public DepartmentResponse callDepartmentService(Long departmentId) {
-
         String url = String.format("%s/%s", departmentProperties.getBaseUrl(), departmentId);
         log.info("Fetching department details. departmentId={}", departmentId);
         DepartmentResponse response = restTemplate.getForObject(url, DepartmentResponse.class);

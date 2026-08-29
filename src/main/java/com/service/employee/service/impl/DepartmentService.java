@@ -21,9 +21,9 @@ public class DepartmentService {
     private final DepartmentProperties departmentProperties;
 
     @CircuitBreaker(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    //@Retry(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    //@RateLimiter()
-    //@TimeLimiter()
+    @Retry(name = "departmentService", fallbackMethod = "getDepartmentFallback")
+    @RateLimiter(name = "departmentService", fallbackMethod = "getDepartmentFallback")
+    @TimeLimiter(name = "departmentService", fallbackMethod = "getDepartmentFallback")
     public DepartmentResponse getDepartment(Long departmentId) {
         String url = departmentProperties.getBaseUrl() + "/" + departmentId;
         log.info("Fetching department details for a departmentId={}", departmentId);

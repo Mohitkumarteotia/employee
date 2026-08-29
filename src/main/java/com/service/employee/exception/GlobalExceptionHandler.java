@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DepartmentServiceException.class)
-    public ResponseEntity<String> handleServiceException(DepartmentServiceException ex) {
+    public ResponseEntity<String> handleDepartmentServiceException(DepartmentServiceException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ex.getMessage());
     }
 

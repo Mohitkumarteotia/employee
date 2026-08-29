@@ -4,24 +4,25 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "employees", uniqueConstraints = {@UniqueConstraint(name = "uk_employee_employee_id", columnNames = "employee_id"), @UniqueConstraint(name = "uk_employee_email", columnNames = "email")})
+@Table(name = "employees"/*, uniqueConstraints = {@UniqueConstraint(name = "uk_employee_employee_id", columnNames = "employee_id"), @UniqueConstraint(name = "uk_employee_email", columnNames = "email")}*/)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class Employee {
 
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "employee_id", nullable = false, unique = true)
-    private String employeeId;
+    @Column(name = "employee_code", nullable = false)
+    private String employeeCode;
 
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String email;
 
     @Column(name = "phone_number", nullable = false)

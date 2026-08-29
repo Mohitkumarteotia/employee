@@ -22,16 +22,16 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public EmployeeResponse createEmployee(EmployeeRequest employeeRequest) {
-        log.info("Creating employee with employeeId={} and departmentId={}", employeeRequest.getEmployeeId(), employeeRequest.getDepartmentId());
+        log.info("Creating employee with employeeId={} and departmentId={}", employeeRequest.getEmployeeCode(), employeeRequest.getDepartmentId());
         DepartmentResponse departmentResponse = departmentService.getDepartment(employeeRequest.getDepartmentId());
         Employee employee = persistEmployeeDetails(employeeRequest, departmentResponse.getDepartmentName());
-        log.info("Employee Created Successfully : {}", employee.getEmployeeId());
+        log.info("Employee Created Successfully : {}", employee.getEmployeeCode());
         return toEmployeeResponse(employee);
     }
 
     private Employee persistEmployeeDetails(EmployeeRequest employeeRequest, String departmentName) {
         Employee employee = Employee.builder()
-                .employeeId(employeeRequest.getEmployeeId())
+                .employeeCode(employeeRequest.getEmployeeCode())
                 .name(employeeRequest.getName())
                 .email(employeeRequest.getEmail())
                 .phoneNumber(employeeRequest.getPhoneNumber())
@@ -44,7 +44,16 @@ public class EmployeeServiceImpl implements EmployeeService {
     }
 
     private EmployeeResponse toEmployeeResponse(Employee employee) {
-        return EmployeeResponse.builder().employeeId(employee.getEmployeeId()).name(employee.getName()).email(employee.getEmail()).phoneNumber(employee.getPhoneNumber()).department(employee.getDepartment()).designation(employee.getDesignation()).salary(employee.getSalary()).address(employee.getAddress()).build();
+        return EmployeeResponse.builder()
+                .employeeCode(employee.getEmployeeCode())
+                .name(employee.getName())
+                .email(employee.getEmail())
+                .phoneNumber(employee.getPhoneNumber())
+                .department(employee.getDepartment())
+                .designation(employee.getDesignation())
+                .salary(employee.getSalary())
+                .address(employee.getAddress())
+                .build();
     }
 
 }

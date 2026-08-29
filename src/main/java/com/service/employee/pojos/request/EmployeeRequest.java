@@ -12,8 +12,8 @@ import lombok.NoArgsConstructor;
 @Builder
 public class EmployeeRequest {
 
-    @NotBlank(message = "Employee ID is required")
-    private String employeeId;
+    @NotBlank(message = "Employee code is required")
+    private String employeeCode;
 
     @NotBlank(message = "Name is required")
     private String name;

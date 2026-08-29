@@ -4,7 +4,9 @@ import com.service.employee.config.DepartmentProperties;
 import com.service.employee.exception.custom.DepartmentServiceException;
 import com.service.employee.pojos.response.DepartmentResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,7 +21,9 @@ public class DepartmentService {
     private final DepartmentProperties departmentProperties;
 
     @CircuitBreaker(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    @Retry(name = "departmentService", fallbackMethod = "getDepartmentFallback")
+    //@Retry(name = "departmentService", fallbackMethod = "getDepartmentFallback")
+    //@RateLimiter()
+    //@TimeLimiter()
     public DepartmentResponse getDepartment(Long departmentId) {
         String url = departmentProperties.getBaseUrl() + "/" + departmentId;
         log.info("Fetching department details. departmentId={}", departmentId);

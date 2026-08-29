@@ -2,8 +2,10 @@ package com.service.employee.service.impl;
 
 import com.service.employee.config.DepartmentProperties;
 import com.service.employee.exception.custom.DepartmentServiceException;
+import com.service.employee.exception.custom.RateLimitExceededException;
 import com.service.employee.pojos.response.DepartmentResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -16,25 +18,30 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class DepartmentService {
 
+    private static final String SERVICE_NAME = "departmentService";
     private final RestTemplate restTemplate;
     private final DepartmentProperties departmentProperties;
 
-    @CircuitBreaker(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    @Retry(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    @RateLimiter(name = "departmentService", fallbackMethod = "getDepartmentFallback")
-    // @TimeLimiter(name = "departmentService", fallbackMethod = "getDepartmentFallback")
+    @CircuitBreaker(name = SERVICE_NAME, fallbackMethod = "departmentFallback")
+    @Retry(name = SERVICE_NAME, fallbackMethod = "departmentFallback")
+    @RateLimiter(name = SERVICE_NAME, fallbackMethod = "rateLimiterFallback")
     public DepartmentResponse getDepartment(Long departmentId) {
-        String url = departmentProperties.getBaseUrl() + "/" + departmentId;
-        log.info("Fetching department details for a departmentId={}", departmentId);
-        log.debug("Calling Department Service URL={}", url);
+
+        String url = String.format("%s/%s", departmentProperties.getBaseUrl(), departmentId);
+        log.info("Fetching department details. departmentId={}", departmentId);
         DepartmentResponse response = restTemplate.getForObject(url, DepartmentResponse.class);
-        log.info("Successfully fetched department details. departmentId={}, departmentName={}", departmentId, response != null ? response.getDepartmentName() : null);
+        log.info("Department details fetched successfully. departmentId={}, departmentName={}", departmentId, response.getDepartmentName());
         return response;
     }
 
-    public DepartmentResponse getDepartmentFallback(Long departmentId, Exception ex) {
-        log.info("Department Service unavailable for a departmentId={}, error={}", departmentId, ex.getMessage(), ex);
+    public DepartmentResponse departmentFallback(Long departmentId, Exception ex) {
+        log.error("Department Service unavailable. departmentId={}, exceptionType={}, message={}", departmentId, ex.getClass().getSimpleName(), ex.getMessage(), ex);
         throw new DepartmentServiceException("Department Service is currently unavailable. Please try again later.");
+    }
+
+    public DepartmentResponse rateLimiterFallback(Long departmentId, RequestNotPermitted ex) {
+        log.warn("Rate limit exceeded for Department Service. departmentId={}", departmentId);
+        throw new RateLimitExceededException("Too many requests. Please try again after some time.");
     }
 
 }

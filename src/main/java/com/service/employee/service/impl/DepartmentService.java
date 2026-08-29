@@ -26,7 +26,7 @@ public class DepartmentService {
     //@TimeLimiter()
     public DepartmentResponse getDepartment(Long departmentId) {
         String url = departmentProperties.getBaseUrl() + "/" + departmentId;
-        log.info("Fetching department details. departmentId={}", departmentId);
+        log.info("Fetching department details for a departmentId={}", departmentId);
         log.debug("Calling Department Service URL={}", url);
         DepartmentResponse response = restTemplate.getForObject(url, DepartmentResponse.class);
         log.info("Successfully fetched department details. departmentId={}, departmentName={}", departmentId, response != null ? response.getDepartmentName() : null);
@@ -34,7 +34,7 @@ public class DepartmentService {
     }
 
     public DepartmentResponse getDepartmentFallback(Long departmentId, Exception ex) {
-        log.info("Department Service unavailable. departmentId={}, error={}", departmentId, ex.getMessage(), ex);
+        log.info("Department Service unavailable for a departmentId={}, error={}", departmentId, ex.getMessage(), ex);
         throw new DepartmentServiceException("Department Service is currently unavailable. Please try again later.");
     }
 

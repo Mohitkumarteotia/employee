@@ -22,10 +22,10 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Override
     @Transactional
     public EmployeeResponse createEmployee(EmployeeRequest employeeRequest) {
-        log.info("Creating employee with employeeId={} and departmentId={}", employeeRequest.getEmployeeCode(), employeeRequest.getDepartmentId());
+        log.info("Creating employee with employeeCode={} and departmentId={}", employeeRequest.getEmployeeCode(), employeeRequest.getDepartmentId());
         DepartmentResponse departmentResponse = departmentService.getDepartment(employeeRequest.getDepartmentId());
         Employee employee = persistEmployeeDetails(employeeRequest, departmentResponse.getDepartmentName());
-        log.info("Employee Created Successfully : {}", employee.getEmployeeCode());
+        log.info("Employee Created Successfully for a Employee Code : {}", employee.getEmployeeCode());
         return toEmployeeResponse(employee);
     }
 

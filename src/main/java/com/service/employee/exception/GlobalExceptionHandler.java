@@ -1,6 +1,10 @@
 package com.service.employee.exception;
 
+import com.service.employee.exception.custom.DepartmentServiceException;
+import com.service.employee.exception.custom.RateLimitExceededException;
 import com.service.employee.pojos.response.ApiErrorResponse;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.NoHandlerFoundException;
@@ -47,6 +52,105 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 */
+
+    // 429 - Custom rate limit exception (thrown from your fallback)
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimit(
+            RateLimitExceededException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.warn("[{}] Rate limit exceeded at {}: {}",
+                traceId, request.getRequestURI(), ex.getMessage());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())      // 429
+                .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "5")   // hint client to retry after 5s
+                .body(body);
+    }
+
+    // 429 - Resilience4j native rate-limiter exception (safety net)
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ResponseEntity<ApiErrorResponse> handleRequestNotPermitted(
+            RequestNotPermitted ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.warn("[{}] RequestNotPermitted (rate limiter) at {}",
+                traceId, request.getRequestURI());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.TOO_MANY_REQUESTS.value())
+                .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
+                .message("Too many requests. Please try again after some time.")
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "5")
+                .body(body);
+    }
+
+    // 503 - Circuit breaker is OPEN (downstream call short-circuited)
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ApiErrorResponse> handleCircuitOpen(
+            CallNotPermittedException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.error("[{}] Circuit breaker OPEN at {}: {}",
+                traceId, request.getRequestURI(), ex.getMessage());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())    // 503
+                .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
+                .message("Service is temporarily unavailable due to high "
+                        + "failure rate. Please try again later.")
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "10")
+                .body(body);
+    }
+
+    // 503 - Your custom downstream-failure exception (from departmentFallback)
+    @ExceptionHandler(DepartmentServiceException.class)
+    public ResponseEntity<ApiErrorResponse> handleDepartmentServiceDown(
+            DepartmentServiceException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.error("[{}] Downstream Department Service unavailable at {}: {}",
+                traceId, request.getRequestURI(), ex.getMessage());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
+                .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "10")
+                .body(body);
+    }
+
+
     // 400 - Bean validation failures
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(
@@ -204,7 +308,6 @@ public class GlobalExceptionHandler {
     }
 
 
-
     // 409 - Duplicate / constraint violation (e.g. duplicate department code)
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
@@ -232,7 +335,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
-
 
 
     private String generateTraceId() {

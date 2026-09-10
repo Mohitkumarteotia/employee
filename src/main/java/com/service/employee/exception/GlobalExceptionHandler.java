@@ -1,54 +1,241 @@
 package com.service.employee.exception;
 
-import com.service.employee.exception.custom.DepartmentServiceException;
-import com.service.employee.exception.custom.RateLimitExceededException;
-import lombok.extern.slf4j.Slf4j;
+import com.service.employee.pojos.response.ApiErrorResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 @RestControllerAdvice
-@Slf4j
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+   /* // 404 - Resource not found
+    @ExceptionHandler(DepartmentNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotFound(
+            DepartmentNotFoundException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        log.warn("[{}] Department not found: {}", traceId, ex.getMessage());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+*/
+    // 400 - Bean validation failures
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiErrorResponse> handleValidation(
+            MethodArgumentNotValidException ex,
+            HttpServletRequest request) {
 
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors()
-                .forEach(fieldError -> errors.put(fieldError.getField(), fieldError.getDefaultMessage()));
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
+        String traceId = generateTraceId();
+
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(fe ->
+                fieldErrors.put(fe.getField(), fe.getDefaultMessage()));
+
+        log.warn("[{}] Validation failed: {}", traceId, fieldErrors);
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message("One or more fields are invalid")
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .fieldErrors(fieldErrors)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, String>> handleDataIntegrityViolationException(DataIntegrityViolationException ex) {
-        Map<String, String> error = new HashMap<>();
-        error.put("message", "Employee ID or Email already exists");
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
-    }
-
-    @ExceptionHandler(DepartmentServiceException.class)
-    public ResponseEntity<String> handleDepartmentServiceException(DepartmentServiceException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ex.getMessage());
-    }
-
-    @ExceptionHandler(RateLimitExceededException.class)
-    public ResponseEntity<String> handleRateLimitException(RateLimitExceededException ex) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(ex.getMessage());
-    }
-
+    // 500 - Catch-all safety net (never leak stack traces)
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
-        log.error("Unexpected Exception: {}", ex.getMessage(), ex);
-        Map<String, String> error = new HashMap<>();
-        error.put("message", "An unexpected error occurred");
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    public ResponseEntity<ApiErrorResponse> handleUnexpected(
+            Exception ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        // Full detail goes to LOGS only, never to the client
+        log.error("[{}] Unexpected error at {}", traceId,
+                request.getRequestURI(), ex);
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
+                .message("An unexpected error occurred. "
+                        + "Please contact support with the traceId.")
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(body);
     }
 
+    // 405 - Wrong HTTP method on a valid URL
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        // e.g. "Method 'GET' not supported. Supported methods: [POST]"
+        String supported = ex.getSupportedHttpMethods() == null
+                ? "N/A"
+                : ex.getSupportedHttpMethods().toString();
+
+        String message = "HTTP method '" + ex.getMethod()
+                + "' is not supported for this endpoint. "
+                + "Supported methods: " + supported;
+
+        log.warn("[{}] 405 Method Not Allowed at {}: {}",
+                traceId, request.getRequestURI(), message);
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .error(HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase())
+                .message(message)
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(body);
+    }
+
+    // 400 - Malformed / unreadable JSON body
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadable(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.warn("[{}] Malformed request body at {}", traceId,
+                request.getRequestURI());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message("Request body is missing or not valid JSON")
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // 400 - Path/query param wrong type (e.g. /departments/abc where Long expected)
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        String message = "Parameter '" + ex.getName()
+                + "' has an invalid value: '" + ex.getValue() + "'";
+
+        log.warn("[{}] Type mismatch at {}: {}", traceId,
+                request.getRequestURI(), message);
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error(HttpStatus.BAD_REQUEST.getReasonPhrase())
+                .message(message)
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    // 404 - No endpoint mapped for the URL
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoHandler(
+            NoHandlerFoundException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+        log.warn("[{}] No handler for {} {}", traceId,
+                ex.getHttpMethod(), ex.getRequestURL());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .message("No endpoint found for " + ex.getHttpMethod()
+                        + " " + ex.getRequestURL())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+
+
+    // 409 - Duplicate / constraint violation (e.g. duplicate department code)
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrity(
+            DataIntegrityViolationException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        // Full technical cause goes to logs only
+        log.warn("[{}] Data integrity violation at {}: {}",
+                traceId, request.getRequestURI(),
+                ex.getMostSpecificCause().getMessage());
+
+        // Clean, client-safe message (do NOT leak SQL / constraint internals)
+        String message = "A department with the same code already exists.";
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error(HttpStatus.CONFLICT.getReasonPhrase())
+                .message(message)
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+
+
+    private String generateTraceId() {
+        return UUID.randomUUID().toString();
+    }
 }

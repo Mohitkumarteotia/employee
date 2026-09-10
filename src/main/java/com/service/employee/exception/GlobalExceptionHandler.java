@@ -73,38 +73,13 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", "5")   // hint client to retry after 5s
-                .body(body);
-    }
-
-    // 429 - Resilience4j native rate-limiter exception (safety net)
-    @ExceptionHandler(RequestNotPermitted.class)
-    public ResponseEntity<ApiErrorResponse> handleRequestNotPermitted(
-            RequestNotPermitted ex,
-            HttpServletRequest request) {
-
-        String traceId = generateTraceId();
-        log.warn("[{}] RequestNotPermitted (rate limiter) at {}",
-                traceId, request.getRequestURI());
-
-        ApiErrorResponse body = ApiErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.TOO_MANY_REQUESTS.value())
-                .error(HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase())
-                .message("Too many requests. Please try again after some time.")
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .header("Retry-After", "5")
                 .body(body);
     }
 
     // 503 - Circuit breaker is OPEN (downstream call short-circuited)
-    @ExceptionHandler(CallNotPermittedException.class)
+    @ExceptionHandler(DepartmentServiceException.class)
     public ResponseEntity<ApiErrorResponse> handleCircuitOpen(
-            CallNotPermittedException ex,
+            DepartmentServiceException ex,
             HttpServletRequest request) {
 
         String traceId = generateTraceId();
@@ -122,31 +97,6 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .header("Retry-After", "10")
-                .body(body);
-    }
-
-    // 503 - Your custom downstream-failure exception (from departmentFallback)
-    @ExceptionHandler(DepartmentServiceException.class)
-    public ResponseEntity<ApiErrorResponse> handleDepartmentServiceDown(
-            DepartmentServiceException ex,
-            HttpServletRequest request) {
-
-        String traceId = generateTraceId();
-        log.error("[{}] Downstream Department Service unavailable at {}: {}",
-                traceId, request.getRequestURI(), ex.getMessage());
-
-        ApiErrorResponse body = ApiErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.SERVICE_UNAVAILABLE.value())
-                .error(HttpStatus.SERVICE_UNAVAILABLE.getReasonPhrase())
-                .message(ex.getMessage())
-                .path(request.getRequestURI())
-                .traceId(traceId)
-                .build();
-
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                .header("Retry-After", "10")
                 .body(body);
     }
 

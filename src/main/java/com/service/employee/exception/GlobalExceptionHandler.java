@@ -271,7 +271,7 @@ public class GlobalExceptionHandler {
                 ex.getMostSpecificCause().getMessage());
 
         // Clean, client-safe message (do NOT leak SQL / constraint internals)
-        String message = "A department with the same code already exists.";
+        String message = "A department with the same email already exists.";
 
         ApiErrorResponse body = ApiErrorResponse.builder()
                 .timestamp(LocalDateTime.now())

@@ -1,6 +1,7 @@
 package com.service.employee.service.impl;
 
 import com.service.employee.entity.Employee;
+import com.service.employee.exception.custom.DepartmentNotFoundException;
 import com.service.employee.exception.custom.RateLimitExceededException;
 import com.service.employee.pojos.constant.ServiceConstants;
 import com.service.employee.pojos.request.EmployeeRequest;
@@ -27,37 +28,36 @@ public class EmployeeServiceImpl implements EmployeeService {
     @Transactional
     @RateLimiter(name = ServiceConstants.DEPARTMENT_SERVICE, fallbackMethod = "rateLimiterFallback")
     public EmployeeResponse createEmployee(EmployeeRequest employeeRequest) {
-        log.info("Creating employee with employeeCode={} and departmentId={}", employeeRequest.getEmployeeCode(), employeeRequest.getDepartmentId());
+        String departmentName = "";
+        log.info("Creating employee for a departmentId : {}", employeeRequest.getDepartmentId());
         DepartmentResponse departmentResponse = departmentService.getDepartment(employeeRequest.getDepartmentId());
-        Employee employee = persistEmployeeDetails(employeeRequest, departmentResponse.getDepartmentName());
-        log.info("Employee Created Successfully for a Employee Code : {}", employee.getEmployeeCode());
-        return toEmployeeResponse(employee);
+        departmentName = departmentResponse.getDepartmentName();
+        if (departmentName.isBlank()) {
+            throw new DepartmentNotFoundException("DepartmentName not found");
+        }
+        Employee employee = persistEmployeeDetails(employeeRequest, departmentName);
+        log.info("Employee Created Successfully for a EmployeeId : {}", employee.getId());
+        return mapToResponse(employee);
     }
 
     private Employee persistEmployeeDetails(EmployeeRequest employeeRequest, String departmentName) {
         Employee employee = Employee.builder()
-                .employeeCode(employeeRequest.getEmployeeCode())
                 .name(employeeRequest.getName())
                 .email(employeeRequest.getEmail())
-                .phoneNumber(employeeRequest.getPhoneNumber())
-                .department(departmentName)
+                .departmentName(departmentName)
                 .designation(employeeRequest.getDesignation())
                 .salary(employeeRequest.getSalary())
-                .address(employeeRequest.getAddress())
                 .build();
         return employeeRepository.save(employee);
     }
 
-    private EmployeeResponse toEmployeeResponse(Employee employee) {
+    private EmployeeResponse mapToResponse(Employee employee) {
         return EmployeeResponse.builder()
-                .employeeCode(employee.getEmployeeCode())
                 .name(employee.getName())
                 .email(employee.getEmail())
-                .phoneNumber(employee.getPhoneNumber())
-                .department(employee.getDepartment())
+                .department(employee.getDepartmentName())
                 .designation(employee.getDesignation())
                 .salary(employee.getSalary())
-                .address(employee.getAddress())
                 .build();
     }
 

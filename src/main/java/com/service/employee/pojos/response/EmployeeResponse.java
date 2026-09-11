@@ -12,12 +12,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EmployeeResponse {
-    private String employeeCode;
     private String name;
     private String email;
-    private String phoneNumber;
     private String department;
     private String designation;
     private Double salary;
-    private String address;
 }

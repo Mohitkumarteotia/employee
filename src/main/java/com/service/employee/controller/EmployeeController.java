@@ -6,6 +6,7 @@ import com.service.employee.service.EmployeeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,8 +23,8 @@ public class EmployeeController {
 
     @PostMapping
     public ResponseEntity<EmployeeResponse> createEmployee(@Valid @RequestBody EmployeeRequest employeeRequest) {
-        EmployeeResponse employee = employeeService.createEmployee(employeeRequest);
-        return ResponseEntity.ok(employee);
+        EmployeeResponse employeeResponse = employeeService.createEmployee(employeeRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeResponse);
     }
 
 }

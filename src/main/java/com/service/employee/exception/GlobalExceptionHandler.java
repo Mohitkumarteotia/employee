@@ -1,5 +1,6 @@
 package com.service.employee.exception;
 
+import com.service.employee.exception.custom.DepartmentNotFoundException;
 import com.service.employee.exception.custom.DepartmentServiceException;
 import com.service.employee.exception.custom.RateLimitExceededException;
 import com.service.employee.pojos.response.ApiErrorResponse;
@@ -27,6 +28,28 @@ import org.springframework.web.servlet.NoHandlerFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // 404 - Resource not found
+    @ExceptionHandler(DepartmentNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotFound(
+            DepartmentNotFoundException ex,
+            HttpServletRequest request) {
+
+        String traceId = generateTraceId();
+
+        log.warn("[{}] Department not found: {}", traceId, ex.getMessage());
+
+        ApiErrorResponse body = ApiErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .traceId(traceId)
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
 
 
     // 429 - Custom rate limit exception (thrown from your fallback)

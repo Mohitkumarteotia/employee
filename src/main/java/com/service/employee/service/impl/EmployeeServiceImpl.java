@@ -32,7 +32,7 @@ public class EmployeeServiceImpl implements EmployeeService {
         log.info("Creating employee for a departmentId : {}", employeeRequest.getDepartmentId());
         DepartmentResponse departmentResponse = departmentService.getDepartment(employeeRequest.getDepartmentId());
         departmentName = departmentResponse.getDepartmentName();
-        if (departmentName.isBlank()) {
+        if (departmentName == null ||departmentName.isBlank()) {
             throw new DepartmentNotFoundException("DepartmentName not found");
         }
         Employee employee = persistEmployeeDetails(employeeRequest, departmentName);

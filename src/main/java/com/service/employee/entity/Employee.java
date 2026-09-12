@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "employees", uniqueConstraints = {@UniqueConstraint(name = "uk_employee_email", columnNames = "email")})
+@Table(name = "employees"/*, uniqueConstraints = {@UniqueConstraint(name = "uk_employee_email", columnNames = "email")}*/)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -12,13 +12,13 @@ import lombok.*;
 public class Employee {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "email", nullable = false, unique = true)
+    @Column(name = "email", nullable = false)
     private String email;
 
     @Column(name = "department_name", nullable = false)
